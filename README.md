@@ -1,41 +1,74 @@
-# Fast
+# Fast — тест скорости в терминале
 
-Test your internet speed from the command-line, powered by [fast.com](https://fast.com).
+Fast — лёгкая утилита для проверки интернет-скорости прямо в терминале. Программа использует ближайшие Netflix Open Connect сервера (через API fast.com) и показывает:
+- скорость загрузки (download) в Mbps/Gbps;
+- скорость отдачи (upload) в Mbps/Gbps;
+- TCP connect time (ping): idle и loaded;
+- время DNS-резолвации;
+- мини-график (sparkline) изменения скорости и пиковое значение.
 
-<img src="demo.gif" width="600" alt="fast running a speed test in the terminal" />
+Демонстрация: (demo.gif в репозитории)
 
-### Usage
+## Особенности
+- Интерактивный TUI на базе [charmbracelet/bubbletea] и [lipgloss].
+- Параллельные загрузки/отдачи для насыщения канала.
+- Отдельные метрики: idle ping (до загрузки), loaded ping (во время трафика), DNS-время измеряется с использованием уникального домена, чтобы обойти локальный кэш.
+- Braille-спарклайн для компактного представления временного ряда скоростей.
+- Простая, статическая бинарная утилита — не требует внешних сервисов кроме доступа в интернет.
 
+## Что именно делает код (коротко)
+- main.go — точка входа: получает список целевых URL (targets), запускает Model TUI, обновляет и визуализирует метрики.
+- fast.go — сеть: извлечение токена fast.com, запрос targets, реализация download/upload воркеров, счётчики байт, измерения ping и DNS.
+- sparkline.go — рендерение sparklines в braille-символах.
+- Константы, которые можно подправить в коде: `connections` (число параллельных соединений), `duration` (время фазы download/upload), `sparkWidth` (ширина sparklines).
+
+## Установка / сборка
+Рекомендуется собрать из исходников (этот форк хранится в репозитории):
 ```bash
-fast
+git clone https://github.com/dumpe2fs/fast.git
+cd fast
+go build -o fast .
+```
+После сборки запустите:
+```bash
+./fast
 ```
 
-`fast` measures your download speed against the nearest Netflix Open Connect
-servers and reports it in megabits per second, right inline in your terminal.
+Примечание про `go install`: оригинальный upstream модуль в go.mod указан как `github.com/maaslalani/fast`. Если вы хотите установить именно из этого форка с `go install`, используйте сборку из кода (git clone + go build) или укажите корректный модуль/путь в go.mod перед установкой.
 
-### Installation
+Требования:
+- Go 1.26+ (go.mod указывает 1.26.3)
+- Доступ в Интернет (https)
 
-Install with Go:
+## Использование
+Просто запустите `./fast`. Интерфейс обновляется в реальном времени:
+- Показаны строки "Download", "Upload", "Ping", "DNS Time".
+- Спарклайн показывает изменение скорости в ходе фазы.
+- Клавиши: q, Esc или Ctrl+C — выход.
 
-```sh
-go install github.com/maaslalani/fast@main
-```
+## Как программа измеряет метрики (коротко)
+- Download: параллельные GET-запросы к URL-адресам из API fast.com; счётчик байт обновляется атомарно, скорость вычисляется на тиках.
+- Upload: POST-запросы с генератором нулевых байт (stream) — подсчитывается отправленный объём.
+- Ping: создаётся TCP connection к IP-адресу целевого хоста (предварительно разрешённому через LookupIP) — это изолирует TCP-RTT от DNS.
+- DNS: разрешается уникальное доменное имя (временная метка), чтобы измерить реальное время резолвации (в обход локального кеша).
 
-Or download a binary from the [releases](https://github.com/maaslalani/fast/releases).
+## Конфигурация / изменения
+Если нужно изменить поведение (количество потоков, длительность фазы и т.п.), отредактируйте константы в main.go:
+- `connections` — количество параллельных соединений на target;
+- `duration` — сколько длится фаза download или upload;
+- `sparkWidth` — ширина графика.
 
-## License
+Если хотите добавить CLI-флаги (например, изменить duration через аргументы), можно расширить main.go, добавив стандартный флаг-парсер.
 
-[MIT](https://github.com/maaslalani/fast/blob/master/LICENSE)
+## Ограничения и замечания
+- Программа опирается на API fast.com и Netflix Open Connect. Если fast.com изменит способ выдачи токена или API — может потребоваться обновление регулярных выражений / логики получения token (в fast.go).
+- Измерения даются в мегабитах/гигабитах в стиле fast.com; кратковременные пиковые значения отображаются отдельно.
+- Старая инструкция по установке через `go install github.com/maaslalani/fast@main` в исходном README может не подходить для этого форка — используйте сборку из исходников для безопасности.
 
-## Feedback
+## Вклад и обратная связь
+Лицензия — MIT (см. LICENSE).  
+Если хотите оставить фидбек или баг-репорт:
+- Откройте issue в репозитории: https://github.com/dumpe2fs/fast/issues
+- Для быстрых предложений — создайте PR с фиксами/изменениями.
 
-I'd love to hear your feedback on improving `fast`.
-
-Feel free to reach out via:
-* [Email](mailto:maas@lalani.dev)
-* [Twitter](https://twitter.com/maaslalani)
-* [GitHub issues](https://github.com/maaslalani/fast/issues/new)
-
----
-
-<sub><sub>z</sub></sub><sub>z</sub>z
+Спасибо за использование Fast!
