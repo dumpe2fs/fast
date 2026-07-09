@@ -1,74 +1,76 @@
-# Fast — тест скорости в терминале
+# Fast — CLI Speed Test
 
-Fast — лёгкая утилита для проверки интернет-скорости прямо в терминале. Программа использует ближайшие Netflix Open Connect сервера (через API fast.com) и показывает:
-- скорость загрузки (download) в Mbps/Gbps;
-- скорость отдачи (upload) в Mbps/Gbps;
-- TCP connect time (ping): idle и loaded;
-- время DNS-резолвации;
-- мини-график (sparkline) изменения скорости и пиковое значение.
+Fast is a lightweight utility for checking internet speed directly in the terminal. The program uses the nearest Netflix Open Connect servers (via the fast.com API) and displays:
+- download speed in Mbps/Gbps;
+- upload speed in Mbps/Gbps;
+- TCP connect time (ping): idle and loaded;
+- DNS resolution time;
+- a mini-graph (sparkline) of speed changes and peak value.
 
-Демонстрация: (demo.gif в репозитории)
+Demonstration: (demo.gif in repository)
 
-## Особенности
-- Интерактивный TUI на базе [charmbracelet/bubbletea] и [lipgloss].
-- Параллельные загрузки/отдачи для насыщения канала.
-- Отдельные метрики: idle ping (до загрузки), loaded ping (во время трафика), DNS-время измеряется с использованием уникального домена, чтобы обойти локальный кэш.
-- Braille-спарклайн для компактного представления временного ряда скоростей.
-- Простая, статическая бинарная утилита — не требует внешних сервисов кроме доступа в интернет.
+## Features
+- Interactive TUI powered by [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) and [lipgloss](https://github.com/charmbracelet/lipgloss).
+- Parallel download/upload streams to saturate the channel.
+- Separate ping metrics: idle ping (before download) and loaded ping (during traffic); DNS query time is measured using a unique subdomain to bypass local cache.
+- Braille sparkline for compact representation of the speed time series.
+- Simple, static binary utility — requires no external services other than internet access.
 
-## Что именно делает код (коротко)
-- main.go — точка входа: получает список целевых URL (targets), запускает Model TUI, обновляет и визуализирует метрики.
-- fast.go — сеть: извлечение токена fast.com, запрос targets, реализация download/upload воркеров, счётчики байт, измерения ping и DNS.
-- sparkline.go — рендерение sparklines в braille-символах.
-- Константы, которые можно подправить в коде: `connections` (число параллельных соединений), `duration` (время фазы download/upload), `sparkWidth` (ширина sparklines).
+## Source Code Structure
+- [main.go](file:///home/user/fast/main.go) — entry point: fetches targets list, runs the TUI model, updates and visualizes metrics.
+- [fast.go](file:///home/user/fast/fast.go) — network logic: retrieves fast.com token, queries targets, implements download/upload workers, counts bytes, measures ping and DNS.
+- [sparkline.go](file:///home/user/fast/sparkline.go) — renders sparklines using Braille characters.
+- Configuration constants that can be tweaked in the code: `connections` (number of parallel connections), `duration` (duration of download/upload phases), `sparkWidth` (sparkline width).
 
-## Установка / сборка
-Рекомендуется собрать из исходников (этот форк хранится в репозитории):
+## Installation & Compilation
+It is recommended to build from source (this fork is stored in the current repository):
 ```bash
 git clone https://github.com/dumpe2fs/fast.git
 cd fast
 go build -o fast .
 ```
-После сборки запустите:
+After compilation, run:
 ```bash
 ./fast
 ```
 
-Примечание про `go install`: оригинальный upstream модуль в go.mod указан как `github.com/maaslalani/fast`. Если вы хотите установить именно из этого форка с `go install`, используйте сборку из кода (git clone + go build) или укажите корректный модуль/путь в go.mod перед установкой.
+> [!NOTE]
+> Note regarding `go install`: the original upstream module in `go.mod` is declared as `github.com/maaslalani/fast`. If you want to install from this fork using `go install`, build it manually (`git clone` + `go build`) or update the module path in `go.mod` before installation.
 
-Требования:
-- Go 1.26+ (go.mod указывает 1.26.3)
-- Доступ в Интернет (https)
+### Requirements
+- Go 1.26+ (go.mod specifies 1.26.3)
+- Internet access (HTTPS)
 
-## Использование
-Просто запустите `./fast`. Интерфейс обновляется в реальном времени:
-- Показаны строки "Download", "Upload", "Ping", "DNS Time".
-- Спарклайн показывает изменение скорости в ходе фазы.
-- Клавиши: q, Esc или Ctrl+C — выход.
+## Usage
+Just run `./fast`. The interface updates in real-time:
+- "Download", "Upload", "Ping", and "DNS Time" lines are displayed.
+- The sparkline shows speed changes during the current phase.
+- Key bindings: `q`, `Esc`, or `Ctrl+C` to exit.
 
-## Как программа измеряет метрики (коротко)
-- Download: параллельные GET-запросы к URL-адресам из API fast.com; счётчик байт обновляется атомарно, скорость вычисляется на тиках.
-- Upload: POST-запросы с генератором нулевых байт (stream) — подсчитывается отправленный объём.
-- Ping: создаётся TCP connection к IP-адресу целевого хоста (предварительно разрешённому через LookupIP) — это изолирует TCP-RTT от DNS.
-- DNS: разрешается уникальное доменное имя (временная метка), чтобы измерить реальное время резолвации (в обход локального кеша).
+## How Metrics are Measured
+- **Download**: parallel GET requests to URLs from the fast.com API; byte counter is updated atomically, speed is calculated on ticks.
+- **Upload**: POST requests with a zero-byte stream generator; measures the sent volume.
+- **Ping**: establishes a TCP connection to the IP address of the target host (resolved via LookupIP) — this isolates TCP-RTT from DNS.
+- **DNS**: resolves a unique domain name (using a timestamp) to measure the actual resolution time without local cache interference.
 
-## Конфигурация / изменения
-Если нужно изменить поведение (количество потоков, длительность фазы и т.п.), отредактируйте константы в main.go:
-- `connections` — количество параллельных соединений на target;
-- `duration` — сколько длится фаза download или upload;
-- `sparkWidth` — ширина графика.
+## Configuration
+To change the program behavior (number of streams, phase duration, etc.), edit the constants in `main.go`:
+- `connections` — number of parallel connections per target;
+- `duration` — duration of the download or upload phase;
+- `sparkWidth` — sparkline graph width.
 
-Если хотите добавить CLI-флаги (например, изменить duration через аргументы), можно расширить main.go, добавив стандартный флаг-парсер.
+If you want to add CLI flags (for example, to change duration via flags), you can extend `main.go` using the standard `flag` package.
 
-## Ограничения и замечания
-- Программа опирается на API fast.com и Netflix Open Connect. Если fast.com изменит способ выдачи токена или API — может потребоваться обновление регулярных выражений / логики получения token (в fast.go).
-- Измерения даются в мегабитах/гигабитах в стиле fast.com; кратковременные пиковые значения отображаются отдельно.
-- Старая инструкция по установке через `go install github.com/maaslalani/fast@main` в исходном README может не подходить для этого форка — используйте сборку из исходников для безопасности.
+## Known Limitations
+- The program relies on the fast.com API and Netflix Open Connect. If fast.com changes token generation or its API, regex or token retrieval logic (in `fast.go`) might need an update.
+- Metrics are reported in megabits/gigabits per second, similar to fast.com; short peak values are displayed separately.
+- Old installation instructions via `go install github.com/maaslalani/fast@main` from the original repository may not apply to this fork — build from source for safety.
 
-## Вклад и обратная связь
-Лицензия — MIT (см. LICENSE).  
-Если хотите оставить фидбек или баг-репорт:
-- Откройте issue в репозитории: https://github.com/dumpe2fs/fast/issues
-- Для быстрых предложений — создайте PR с фиксами/изменениями.
+## License and Feedback
+The project is licensed under the MIT License (see [LICENSE](file:///home/user/fast/LICENSE)).
 
-Спасибо за использование Fast!
+If you want to report a bug or suggest an improvement:
+- Open an issue in the repository: https://github.com/dumpe2fs/fast/issues
+- For quick fixes, create a PR with your changes.
+
+Thank you for using Fast!
